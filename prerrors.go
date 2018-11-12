@@ -140,7 +140,7 @@ func handlePR(
 
 	prefix := fmt.Sprintf("Error while checking %s for %s", checkName, sha)
 
-	issue, err := pr.Repo().Issue(pr.Number)
+	issue, err := pr.Repo().Issue(pr.Number())
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func getBuildLogs(pr *pullrequest.PR) *buildLogs {
 func logPath(pr *pullrequest.PR, useLatest bool) string {
 	latest := "latest"
 	if !useLatest {
-		latest = pr.SHA
+		latest = pr.SHA()
 	}
 
 	// Replace all chars in checkName that are not in the
@@ -248,8 +248,8 @@ func logPath(pr *pullrequest.PR, useLatest bool) string {
 	normStatus := re.ReplaceAllString(cfg.buildInfo.checkName, "_")
 
 	return filepath.Join(
-		pr.RepoPath,
-		fmt.Sprintf("%d", pr.Number),
+		pr.RepoPath(),
+		fmt.Sprintf("%d", pr.Number()),
 		latest,
 		normStatus,
 		"fullLog.txt",

@@ -62,7 +62,7 @@ type ShutdownError struct{ error }
 
 // NewBuild creates a Build instance for the given pull request
 // func NewBuild(pr *pullrequest.PR) *Build {
-func NewBuild(pr PullRequestor) *Build {
+func NewBuild(pr *pullrequest.PR) *Build {
 	return &Build{
 		pr:      pr,
 		created: now(),
@@ -70,7 +70,7 @@ func NewBuild(pr PullRequestor) *Build {
 		abort:   make(chan struct{}),
 		aliBuild: alibuild.New(
 			cfg.alibuild.executable,
-			pr.PackageName,
+			pr.PackageName(),
 			[]string{
 				"GITLAB_USER=",
 				"GITLAB_PASS=",
@@ -136,8 +136,8 @@ func (b *Build) start() {
 
 	Debug(
 		"Starting build",
-		Field("pr", b.pr.Number),
-		Field("repo", b.pr.RepoPath),
+		Field("pr", b.pr.Number()),
+		Field("repo", b.pr.RepoPath()),
 	)
 
 	b.started = now()
@@ -168,8 +168,8 @@ func (b *Build) exec() {
 		if r := recover(); r != nil {
 			Error(
 				"build.exec function panicked",
-				Field("pr", b.pr.Number),
-				Field("repo", b.pr.RepoPath),
+				Field("pr", b.pr.Number()),
+				Field("repo", b.pr.RepoPath()),
 				Field("panic", r),
 			)
 		}
@@ -183,7 +183,7 @@ func (b *Build) exec() {
 	services["analytics"].send((&analyticsData{}).screenview("pr_processing"))
 	services["influxdb"].send(influxDBData{state: "pr_processing"})
 
-	Info("Launching build", Field("pr", b.pr.Number), Field("repo", b.pr.RepoPath))
+	Info("Launching build", Field("pr", b.pr.Number()), Field("repo", b.pr.RepoPath))
 
 	b.runAliBuild()
 	/*
@@ -219,7 +219,7 @@ func (b *Build) init() bool {
 
 	var (
 		err      error
-		repos    []gitRepo
+		repos    gitRepos
 		root     = "."
 		maxdepth = 2
 		ignore   = []string{"ali-bot"}
@@ -235,7 +235,8 @@ func (b *Build) init() bool {
 	}
 
 	// TODO: we need to have a context in here somewhere to cancel if the build is stopped
-	return updateLocalRepos(repos) && b.updatePRRepo()
+	err = repos.update(cfg.pr.remote, cfg.pr.branch)
+	return err != nil && b.updatePRRepo()
 }
 
 // ------------------------------------------------------------------
@@ -281,7 +282,7 @@ func (b *Build) updatePRRepo() bool {
 		git.DropError()
 	}
 
-	if b.pr.Number > 0 {
+	if b.pr.Number() > 0 {
 		prBranch := fmt.Sprintf("+pull/%d/head", b.pr.Number)
 		if r = git.fetch(cfg.pr.remote, prBranch, cfg.timeout.short); r.IsError() {
 			Info(
@@ -312,7 +313,7 @@ func (b *Build) updatePRRepo() bool {
 	preMergeSize, _ := shell.DirTreeSize(root, ignoreDirs)
 
 	// Do the merge
-	r = git.merge(b.pr.SHA, "--no-edit")
+	r = git.merge(b.pr.SHA(), "--no-edit")
 
 	// Clean up whatever happens with the merge
 	git.reset("--hard HEAD")
@@ -605,16 +606,16 @@ func (b *Build) handleAliDoctorFailed(result *shell.Result) {
 	case result.Cancelled:
 		Info(
 			"aliBuild doctor command was aborted",
-			Field("pr", b.pr.Number),
-			Field("repo", b.pr.RepoPath),
+			Field("pr", b.pr.Number()),
+			Field("repo", b.pr.RepoPath()),
 		)
 		return
 
 	case result.TimedOut:
 		Info(
 			"aliBuild doctor command timedout",
-			Field("pr", b.pr.Number),
-			Field("repo", b.pr.RepoPath),
+			Field("pr", b.pr.Number()),
+			Field("repo", b.pr.RepoPath()),
 		)
 		return
 	}
@@ -663,7 +664,7 @@ func (b *Build) runAliBuild() bool {
 		shell.Timeout(cfg.timeout.long),
 		shell.Cancel(b.abort),
 		shell.Env([]string{
-			fmt.Sprintf("ALIBUILD_HEAD_HASH=%s", b.pr.SHA),
+			fmt.Sprintf("ALIBUILD_HEAD_HASH=%s", b.pr.SHA()),
 			fmt.Sprintf("ALIBUILD_BASE_HASH=%s", b.baseSHA),
 		}),
 	)
@@ -708,16 +709,16 @@ func (b *Build) handleAliBuildFailed(result *shell.Result) {
 		// report pr errors, analytics etc
 		Info(
 			"aliBuild build command was aborted",
-			Field("pr", b.pr.Number),
-			Field("repo", b.pr.RepoPath),
+			Field("pr", b.pr.Number()),
+			Field("repo", b.pr.RepoPath()),
 		)
 		return
 
 	case result.TimedOut:
 		Info(
 			"aliBuild doctor command timedout",
-			Field("pr", b.pr.Number),
-			Field("repo", b.pr.RepoPath),
+			Field("pr", b.pr.Number()),
+			Field("repo", b.pr.RepoPath()),
 		)
 		return
 	}
@@ -886,7 +887,7 @@ func (b *Build) reportBuildToInflux(buildOK bool, buildDuration int64) error {
 			ctxTimeout,
 			influxDBData{
 				state:       "pr_processing_done",
-				prNumber:    b.pr.Number,
+				prNumber:    b.pr.Number(),
 				prBuildTime: buildDuration,
 				prSucceeded: buildOK,
 			},

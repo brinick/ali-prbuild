@@ -14,7 +14,7 @@ func (g *gitRepos) update(remote, branch string) error {
 	// TODO: pass in shell.Cancel with the build shutdown channel
 	// to stop the repo updates if necessary
 
-	for _, repo := range repos {
+	for _, repo := range *g {
 		Info("Trying to update local repo", logging.F("repo", repo.path))
 		if err := repo.update(remote, branch); err != nil {
 			Info("Unable to update local repo", ErrField(err))

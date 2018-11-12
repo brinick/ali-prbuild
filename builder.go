@@ -33,7 +33,7 @@ func NewBuilder() *Builder {
 // If a build is already ongoing, a BuildOngoingError is returned.
 func (b *Builder) Start(pr *pullrequest.PR) error {
 	if b.isActive() {
-		return BuildOngoingError(b.current.pr.Number)
+		return BuildOngoingError(b.current.pr.Number())
 	}
 
 	// builder may have a reference to a done build

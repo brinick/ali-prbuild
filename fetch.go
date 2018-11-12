@@ -555,7 +555,7 @@ func (k *knownPRs) add(pprs []*priorityPR) {
 	now := time.Now().Unix()
 
 	for _, ppr := range pprs {
-		key := prKey{number: ppr.pr.Number, sha: ppr.pr.SHA}
+		key := prKey{number: ppr.pr.Number(), sha: ppr.pr.SHA()}
 
 		if _, found := k.prs[key]; !found {
 			kpr := knownPR{
@@ -627,8 +627,8 @@ func (k *knownPRs) reset(prs []*priorityPR) {
 // makeKey creates a prKey struct instance from the given pull request
 func (k *knownPRs) makeKey(pr *priorityPR) prKey {
 	return prKey{
-		number: pr.pr.Number,
-		sha:    pr.pr.SHA,
+		number: pr.pr.Number(),
+		sha:    pr.pr.SHA(),
 	}
 }
 
@@ -713,7 +713,7 @@ func containsMainBranchPR(pprs []*priorityPR) bool {
 func toPRNumbers(prs []*priorityPR) []string {
 	numbers := []string{}
 	for _, pr := range prs {
-		numbers = append(numbers, strconv.Itoa(pr.pr.Number))
+		numbers = append(numbers, strconv.Itoa(pr.pr.Number()))
 	}
 
 	return numbers
@@ -723,7 +723,7 @@ func toPRNumbers(prs []*priorityPR) []string {
 
 // Decide whether to accept a given pull request
 var acceptPR = func(pr *pullrequest.PR) bool {
-	first := string(pr.SHA[0])
+	first := string(pr.SHA()[0])
 	base := 16
 	bitSize := 32
 	index, err := strconv.ParseInt(first, base, bitSize)

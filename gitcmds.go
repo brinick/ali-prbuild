@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/brinick/logging"
 	"github.com/brinick/shell"
 )
 
